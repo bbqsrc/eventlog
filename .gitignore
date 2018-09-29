@@ -1,0 +1,7 @@
+/target
+**/*.rs.bk
+Cargo.lock
+/res/*.bin
+/res/*.h
+/res/*.rc
+.idea
