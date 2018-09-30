@@ -1,6 +1,5 @@
 use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
-use std::{error, fmt, io};
-use widestring::U16CString;
+use std::{error, ffi::OsStr, fmt, io, iter::once, os::windows::ffi::OsStrExt};
 use winapi::{
     shared::ntdef::{HANDLE, NULL},
     um::{
@@ -60,6 +59,10 @@ fn discard_result<R, E>(_result: &Result<R, E>) {
     ()
 }
 
+fn win_string(s: &str) -> Vec<u16> {
+    OsStr::new(s).encode_wide().chain(once(0)).collect()
+}
+
 pub fn deregister(name: &str) {
     discard_result(&try_deregister(name))
 }
@@ -97,7 +100,7 @@ impl WinLogger {
     }
 
     pub fn try_new(name: &str) -> Result<WinLogger, Error> {
-        let wide_name = unsafe { U16CString::from_str_unchecked(name) };
+        let wide_name = win_string(name);
         let handle = unsafe { RegisterEventSourceW(std::ptr::null_mut(), wide_name.as_ptr()) };
 
         if handle == NULL {
@@ -129,7 +132,7 @@ impl log::Log for WinLogger {
                 Level::Trace => (EVENTLOG_INFORMATION_TYPE, MSG_TRACE),
             };
 
-            let msg = unsafe { U16CString::from_str_unchecked(format!("{:?}", record.args())) };
+            let msg = win_string(&format!("{:?}", record.args()));
             let mut vec = vec![msg.as_ptr()];
 
             unsafe {

@@ -21,6 +21,5 @@ rand = "0.5"
 
 [dependencies]
 log = { version = "0.4", features = [ "std" ] }
-widestring = "0.4"
 winapi = { version = "0.3", features = [ "winbase" ] }
 winreg = "0.5"
