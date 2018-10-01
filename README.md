@@ -1,3 +1,5 @@
+![Crates badge](https://img.shields.io/crates/v/winlog.svg)
+
 # winlog
 
 A simple [Rust log](https://docs.rs/log/latest/log/) backend to send messages to the [Windows event log](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
