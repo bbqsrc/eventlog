@@ -1,7 +1,7 @@
 # winlog
 
 [![Latest version](https://img.shields.io/crates/v/winlog.svg)](https://crates.io/crates/winlog)
-![License](https://img.shields.io/crates/l/winlog.svg)
+[![License](https://img.shields.io/crates/l/winlog.svg)](https://gitlab.com/arbitrix/winlog/blob/master/LICENSE)
 
 A simple [Rust log](https://docs.rs/log/latest/log/) backend to send messages to the [Windows event log](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
 
