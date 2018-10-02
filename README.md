@@ -44,7 +44,9 @@ winlog = "*"
 
 Register the log source in the Windows registry:
 ```
-winlog::register("Example Log");
+winlog::register("Example Log"); // silently ignores errors
+// or
+winlog::try_register("Example Log").unwrap();
 ```
 This usually requires `Administrator` permission so this is usually done during
 installation time. If your MSI installer (or similar) registers your event
@@ -60,7 +62,9 @@ info!("Hello, Event Log");
 
 Deregister the log source: 
 ```
-winlog::deregister("Example Log");
+winlog::deregister("Example Log"); // silently ignores errors
+// or
+winlog::try_deregister("Example Log").unwrap();
 ```
 This is usually done during program uninstall. If your MSI 
 installer (or similar) deregisters your event sources you should not call this.
