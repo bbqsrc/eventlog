@@ -1,4 +1,8 @@
-use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
+extern crate log;
+extern crate winapi;
+extern crate winreg;
+
+use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use std::{error, ffi::OsStr, fmt, io, iter::once, os::windows::ffi::OsStrExt};
 use winapi::{
     shared::ntdef::{HANDLE, NULL},
@@ -10,7 +14,7 @@ use winapi::{
 use winreg::{enums::*, RegKey};
 
 mod eventmsgs;
-use crate::eventmsgs::{MSG_DEBUG, MSG_ERROR, MSG_INFO, MSG_TRACE, MSG_WARNING};
+use eventmsgs::{MSG_DEBUG, MSG_ERROR, MSG_INFO, MSG_TRACE, MSG_WARNING};
 
 const REG_BASEKEY: &str = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application";
 

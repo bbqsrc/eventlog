@@ -27,7 +27,7 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 ## Requirements
 
-* Rust 2018
+* Rust stable (tested on 1.29)
 * Windows
 * (optional) PowerShell (used for the end-to-end test)
 * (optional) [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)

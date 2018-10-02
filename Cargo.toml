@@ -2,7 +2,6 @@
 name = "winlog"
 version = "0.1.1"
 authors = ["Jeroen C. van Gelderen <jeroen@vangelderen.org>"]
-edition = "2018"
 build = "build.rs"
 categories = [ "development-tools::debugging", "os::windows-apis" ]
 description = "A simple Rust log backend to send messages to the Windows event log."
