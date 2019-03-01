@@ -15,60 +15,41 @@ use std::{
 // i.e. "#define SOMETHING   ((DWORD)0x1200L)" -> ("SOMETHING", "DWORD", 0x1200)
 const REGEX: &str = r"^#define (\S+)\s+\(?(\([[:alpha:]]+\))?\s*(0x[[:xdigit:]]+)";
 
+const MC_ARGS: &[&str] = &["-U", "-h", "res", "-r", "res", "res/eventmsgs.mc"];
+
+#[cfg(not(windows))]
+const MC_BIN: &str = "windmc";
+#[cfg(not(windows))]
+const RC_BIN: &str = "windres";
+#[cfg(not(windows))]
+const RC_ARGS: &[&str] = &["-v", "-i", "res/eventmsgs.rc", "-o", "res/eventmsgs.lib"];
+
+#[cfg(not(windows))]
 fn prefix_command(cmd: &str) -> Cow<str> {
-    Regex::new(r"^(.*)-[^-]+$").unwrap()
+    Regex::new(r"^(.*)-[^-]+$")
+        .unwrap()
         .captures(&env::var("RUSTC_LINKER").unwrap())
-            .map_or(
-                cmd.into(),
-                |capts| format!("{}-{}", &capts[1], cmd).into()
-            )
+        .map_or(cmd.into(), |capts| format!("{}-{}", &capts[1], cmd).into())
 }
 
-fn run_mc() -> () {
-    let mut command = {
-        #[cfg(windows)] { Command::new("mc.exe") }
-        #[cfg(not(windows))] { Command::new(prefix_command("windmc").as_ref()) }
-    };
-    command
-        .arg("-U")
-        .arg("-h")
-        .arg("res")
-        .arg("-r")
-        .arg("res")
-        .arg("res/eventmsgs.mc");
+#[cfg(windows)]
+const MC_BIN: &str = "mc.exe";
+#[cfg(windows)]
+const RC_BIN: &str = "rc.exe";
+#[cfg(windows)]
+const RC_ARGS: &[&str] = &["/v", "/fo", "res/eventmsgs.lib", "res/eventmsgs.rc"];
+
+#[cfg(windows)]
+fn prefix_command(cmd: &str) -> Cow<str> {
+    cmd.into()
+}
+
+fn run_tool(cmd: &str, args: &[&str]) -> () {
+    let mut command = Command::new(prefix_command(cmd).as_ref());
+    command.args(args);
+
     let out = command.output().unwrap();
     println!("{:?}", str::from_utf8(&out.stderr).unwrap());
-}
-
-fn run_rc() -> () {
-    #[cfg(windows)]
-    let mut command = {
-        let mut command = Command::new("rc.exe");
-
-        command
-            .arg("/v")
-            .arg("/fo")
-            .arg("res/eventmsgs.lib")
-            .arg("res/eventmsgs.rc");
-
-        command
-    };
-
-    #[cfg(not(windows))]
-    let mut command = {
-        let mut command = Command::new(prefix_command("windres").as_ref());
-
-        command
-            .arg("-v")
-            .arg("-i")
-            .arg("res/eventmsgs.rc")
-            .arg("-o")
-            .arg("res/eventmsgs.lib");
-
-        command
-    };
-
-    let out = command.output().unwrap();
     println!("{:?}", str::from_utf8(&out.stdout).unwrap());
 }
 
@@ -90,7 +71,8 @@ fn gen_rust() -> () {
 }
 
 fn main() {
-    let generate = cfg!(not(windows)) || match metadata("res/eventmsgs.rs") {
+    let generate = cfg!(not(windows))
+        || match metadata("res/eventmsgs.rs") {
         Ok(meta_rs) => {
             let modtime_rs = meta_rs.modified().unwrap();
             let modtime_mc = metadata("res/eventmsgs.mc").unwrap().modified().unwrap();
@@ -100,8 +82,8 @@ fn main() {
     };
 
     if generate {
-        run_mc();
-        run_rc();
+        run_tool(MC_BIN, MC_ARGS);
+        run_tool(RC_BIN, RC_ARGS);
         gen_rust();
     }
 
