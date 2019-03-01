@@ -28,10 +28,10 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 ## Requirements
 
 * Rust stable (tested on 1.29)
-* Windows or mingw
-* (optional) PowerShell (used for the end-to-end test)
-* (optional) [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
-
+* Windows or MinGW
+* [MinGW, required] [windmc](http://man7.org/linux/man-pages/man1/windmc.1.html) and [windres](http://man7.org/linux/man-pages/man1/windres.1.html)
+* [Windows, optional] PowerShell (used for the end-to-end test)
+* [Windows, optional] [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
 
 ## Usage
 
