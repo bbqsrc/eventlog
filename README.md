@@ -28,7 +28,7 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 ## Requirements
 
 * Rust stable (tested on 1.29)
-* Windows
+* Windows or mingw
 * (optional) PowerShell (used for the end-to-end test)
 * (optional) [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
 
@@ -72,8 +72,40 @@ installer (or similar) deregisters your event sources you should not call this.
 
 ## Building
 
-```cargo build --release```
+## Windows
 
+```sh
+cargo build --release
+```
+
+### MinGW
+
+Install MinGW (Ubuntu):
+
+```sh
+sudo apt install mingw-w64
+```
+
+Install Rust:
+
+```sh
+rustup target install x86_64-pc-windows-gnu
+rustup target install i686-pc-windows-gnu
+```
+
+Currently the install from rustup doesn't use the correct linker so you have to add the following to `.cargo/config`:
+
+    [target.x86_64-pc-windows-gnu]
+    linker = "/usr/bin/x86_64-w64-mingw32-gcc"
+
+    [target.i686-pc-windows-gnu]
+    linker = "/usr/bin/i686-w64-mingw32-gcc"
+    rustflags = "-C panic=abort"
+
+Build:
+```sh
+cargo build --release
+```
 
 ### Internals
 
