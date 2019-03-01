@@ -72,7 +72,7 @@ installer (or similar) deregisters your event sources you should not call this.
 
 ## Building
 
-## Windows
+### Windows
 
 ```sh
 cargo build --release
