@@ -1,11 +1,13 @@
 extern crate regex;
+extern crate sha2;
 
 use regex::Regex;
+use sha2::{Sha256, Digest};
 use std::{
     borrow::Cow,
     env,
-    fs::{metadata, File},
-    io::{prelude::*, BufRead, BufReader, LineWriter},
+    fs::File,
+    io::{prelude::*, copy, BufRead, BufReader, LineWriter},
     process::Command,
     str,
 };
@@ -15,7 +17,10 @@ use std::{
 // i.e. "#define SOMETHING   ((DWORD)0x1200L)" -> ("SOMETHING", "DWORD", 0x1200)
 const REGEX: &str = r"^#define (\S+)\s+\(?(\([[:alpha:]]+\))?\s*(0x[[:xdigit:]]+)";
 
-const MC_ARGS: &[&str] = &["-U", "-h", "res", "-r", "res", "res/eventmsgs.mc"];
+const INPUT_FILE: &str = "res/eventmsgs.mc";
+const GENERATED_FILE: &str = "res/eventmsgs.rs";
+
+const MC_ARGS: &[&str] = &["-U", "-h", "res", "-r", "res", INPUT_FILE];
 
 #[cfg(not(windows))]
 const MC_BIN: &str = "windmc";
@@ -53,11 +58,13 @@ fn run_tool(cmd: &str, args: &[&str]) -> () {
     println!("{:?}", str::from_utf8(&out.stdout).unwrap());
 }
 
-fn gen_rust() -> () {
+fn gen_rust(origin_hash: &str) -> () {
     let re = Regex::new(REGEX).unwrap();
 
-    let file_out = File::create("res/eventmsgs.rs").unwrap();
+    let file_out = File::create(GENERATED_FILE).unwrap();
     let mut writer = LineWriter::new(file_out);
+
+    writer.write_all(format!("// Auto-generated from origin with SHA256 {}.\n", origin_hash).as_bytes()).unwrap();
 
     let file_in = File::open("res/eventmsgs.h").unwrap();
     for line_res in BufReader::new(file_in).lines() {
@@ -70,21 +77,36 @@ fn gen_rust() -> () {
     }
 }
 
-fn main() {
-    let generate = cfg!(not(windows))
-        || match metadata("res/eventmsgs.rs") {
-        Ok(meta_rs) => {
-            let modtime_rs = meta_rs.modified().unwrap();
-            let modtime_mc = metadata("res/eventmsgs.mc").unwrap().modified().unwrap();
-            modtime_mc > modtime_rs
-        }
-        Err(_) => true,
-    };
+fn file_hash(f: &str) -> String {
+    let mut file = File::open(f).unwrap();
+    let mut hasher = Sha256::new();
+    let _count = copy(&mut file, &mut hasher).unwrap();
+    let formatted = format!("{:x}", hasher.result());
+    println!("file={}, hash={}", f, formatted);
+    formatted
+}
 
-    if generate {
+fn file_contains(f: &str, needle: &str) -> bool {
+    let file = File::open(f).unwrap();
+    for line in BufReader::new(file).lines() {
+        if line.unwrap().contains(needle) {
+            println!("file={} contains {}", f, needle);
+            return true;
+        }
+    }
+    println!("file={} does not contain {}", f, needle);
+    false
+}
+
+fn main() {
+    let origin_hash = file_hash(INPUT_FILE);
+
+    if !file_contains(GENERATED_FILE, &origin_hash) {
+        println!("Generating {} from {} with hash {}", GENERATED_FILE, INPUT_FILE, origin_hash);
+
         run_tool(MC_BIN, MC_ARGS);
         run_tool(RC_BIN, RC_ARGS);
-        gen_rust();
+        gen_rust(&origin_hash);
     }
 
     let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
