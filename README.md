@@ -1,9 +1,12 @@
 # winlog
 
 [![Latest version](https://img.shields.io/crates/v/winlog.svg)](https://crates.io/crates/winlog)
+[![Documentation](https://docs.rs/winlog/badge.svg)](https://docs.rs/winlog)
 [![License](https://img.shields.io/crates/l/winlog.svg)](https://gitlab.com/arbitrix/winlog/blob/master/LICENSE)
 
 A simple [Rust log](https://docs.rs/log/latest/log/) backend to send messages to the [Windows event log](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
+
+## Features
 
 * Writes Rust log messages to the Windows event log using the
   [RegisterEventSourceW](https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-registereventsourcew)
@@ -29,9 +32,9 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 * Rust stable (tested on 1.29)
 * Windows or MinGW
-* [MinGW, required] [windmc](http://man7.org/linux/man-pages/man1/windmc.1.html) and [windres](http://man7.org/linux/man-pages/man1/windres.1.html)
-* [Windows, optional] PowerShell (used for the end-to-end test)
+* [MinGW, optional] [windmc](http://man7.org/linux/man-pages/man1/windmc.1.html) and [windres](http://man7.org/linux/man-pages/man1/windres.1.html) (only required when `eventmsgs.mc` is changed)
 * [Windows, optional] [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
+* [Windows, optional] PowerShell (used for the end-to-end test)
 
 ## Usage
 
