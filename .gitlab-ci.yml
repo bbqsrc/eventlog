@@ -1,0 +1,20 @@
+test:win10:stable:
+  tags:
+    - win10
+  script:
+    - rustc --version; cargo --version
+    - cargo +stable test --all --verbose
+
+test:win10:beta:
+  tags:
+    - win10
+  script:
+    - rustc --version; cargo --version
+    - cargo +beta test --all --verbose
+
+test:win10:1.29.0:
+  tags:
+    - win10
+  script:
+    - rustc --version; cargo --version
+    - cargo +1.29.0 test --all --verbose
