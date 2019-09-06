@@ -18,3 +18,14 @@ test:win10:1.29.0:
   script:
     - rustc --version; cargo --version
     - cargo +1.29.0 test --all --verbose
+    
+build:mingw:
+  tags:
+    - docker
+  image: rust:latest
+  script:
+    - apt-get update
+    - apt install mingw-w64 -y
+    - rustup target install x86_64-pc-windows-gnu
+    - rustc --version --verbose; cargo --version --verbose
+    - cargo build --target x86_64-pc-windows-gnu --all --verbose
