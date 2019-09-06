@@ -31,10 +31,9 @@ const RC_ARGS: &[&str] = &["-v", "-i", "res/eventmsgs.rc", "-o", "res/eventmsgs.
 
 #[cfg(not(windows))]
 fn prefix_command(cmd: &str) -> Cow<str> {
-    Regex::new(r"^(.*)-[^-]+$")
-        .unwrap()
-        .captures(&env::var("RUSTC_LINKER").unwrap())
-        .map_or(cmd.into(), |capts| format!("{}-{}", &capts[1], cmd).into())
+    let target = env::var("TARGET").unwrap();
+    let arch: &str = target.split("-").collect::<Vec<&str>>()[0];
+    format!("{}-w64-mingw32-{}", arch, cmd).into()
 }
 
 #[cfg(windows)]
