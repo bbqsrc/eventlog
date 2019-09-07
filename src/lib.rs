@@ -2,6 +2,9 @@ extern crate log;
 extern crate winapi;
 extern crate winreg;
 
+#[cfg(feature = "env_logger")]
+extern crate env_logger;
+
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use std::{error, ffi::OsStr, fmt, io, iter::once, os::windows::ffi::OsStrExt};
 use winapi::{
@@ -51,9 +54,34 @@ impl error::Error for Error {
     }
 }
 
-#[derive(Debug)]
+#[cfg(not(feature = "env_logger"))]
+pub struct Filter {}
+#[cfg(not(feature = "env_logger"))]
+impl Filter {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+    fn matches(&self, _record: &Record) -> bool {
+        true
+    }
+}
+#[cfg(not(feature = "env_logger"))]
+fn make_filter() -> Filter {
+    Filter {}
+}
+
+#[cfg(feature = "env_logger")]
+use env_logger::filter::Filter;
+#[cfg(feature = "env_logger")]
+fn make_filter() -> Filter {
+    use env_logger::filter::Builder;
+    let mut builder = Builder::from_env("RUST_LOG");
+    builder.build()
+}
+
 pub struct WinLogger {
     handle: HANDLE,
+    filter: Filter,
 }
 
 unsafe impl Send for WinLogger {}
@@ -100,7 +128,10 @@ pub fn try_register(name: &str) -> Result<(), Error> {
 
 impl WinLogger {
     pub fn new(name: &str) -> WinLogger {
-        Self::try_new(name).unwrap_or(WinLogger { handle: NULL })
+        Self::try_new(name).unwrap_or(WinLogger {
+            handle: NULL,
+            filter: make_filter(),
+        })
     }
 
     pub fn try_new(name: &str) -> Result<WinLogger, Error> {
@@ -110,7 +141,10 @@ impl WinLogger {
         if handle == NULL {
             Err(Error::RegisterSourceFailed)
         } else {
-            Ok(WinLogger { handle })
+            Ok(WinLogger {
+                handle,
+                filter: make_filter(),
+            })
         }
     }
 }
@@ -122,12 +156,12 @@ impl Drop for WinLogger {
 }
 
 impl log::Log for WinLogger {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        self.filter.enabled(metadata)
     }
 
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
+        if self.filter.matches(record) {
             let type_and_msg = match record.level() {
                 Level::Error => (EVENTLOG_ERROR_TYPE, MSG_ERROR),
                 Level::Warn => (EVENTLOG_WARNING_TYPE, MSG_WARNING),

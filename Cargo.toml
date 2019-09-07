@@ -1,6 +1,6 @@
 [package]
 name = "winlog"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Jeroen C. van Gelderen <jeroen@vangelderen.org>"]
 build = "build.rs"
 categories = [ "development-tools::debugging", "os::windows-apis" ]
@@ -23,6 +23,10 @@ sha2 = "0.8.0"
 rand = "0.5"
 
 [dependencies]
+env_logger = { version = "0.6", features = [], default-features = false, optional = true }
 log = { version = "0.4", features = [ "std" ] }
 winapi = { version = "0.3", features = [ "winbase" ] }
 winreg = "0.5"
+
+[features]
+default = []

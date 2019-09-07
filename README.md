@@ -1,5 +1,6 @@
 # winlog
 
+[![Build status](https://img.shields.io/gitlab/pipeline/arbitrix/winlog.svg)](https://gitlab.com/arbitrix/winlog/pipelines)
 [![Latest version](https://img.shields.io/crates/v/winlog.svg)](https://crates.io/crates/winlog)
 [![Documentation](https://docs.rs/winlog/badge.svg)](https://docs.rs/winlog)
 [![License](https://img.shields.io/crates/l/winlog.svg)](https://gitlab.com/arbitrix/winlog/blob/master/LICENSE)
@@ -11,6 +12,7 @@ A simple [Rust log](https://docs.rs/log/latest/log/) backend to send messages to
 * Writes Rust log messages to the Windows event log using the
   [RegisterEventSourceW](https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-registereventsourcew)
   and [ReportEventW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-reporteventw) APIs.
+* Supports `env_logger` filtering, initialized from RUST_LOG environment variable. (optional)
 * Provides utility functions to register/unregister your
   [event source](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-sources) in the Windows registry.
 * Embeds a small (120-byte) message resource library containing the
@@ -30,19 +32,27 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 ## Requirements
 
-* Rust stable (tested on 1.29)
+* Rust 1.29+
 * Windows or MinGW
 * [Windows, optional] [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
 * [Windows, optional] PowerShell (used for the end-to-end test)
 
 ## Usage
 
-Add to `cargo.toml`:
+### Cargo.toml
+
+Plain winlog:
 ```
 [dependencies]
 winlog = "*"
 ```
+Or to enable env_logger filtering support:
+```
+[dependencies]
+winlog = { version = "0.2.5", features = ["env_logger"] }
+```
 
+### Register log source with Windows
 
 Register the log source in the Windows registry:
 ```
@@ -51,16 +61,30 @@ winlog::register("Example Log"); // silently ignores errors
 winlog::try_register("Example Log").unwrap();
 ```
 This usually requires `Administrator` permission so this is usually done during
-installation time. If your MSI installer (or similar) registers your event
-sources you should not call this.
+installation time.
+
+If your MSI installer (or similar) registers your event sources you should not call this.
 
 
-Use the winlog backend:
+### Log events
+
+Without env_logger filtering:
 ```
 winlog::init("Example Log").unwrap();
+
 info!("Hello, Event Log");
+trace!("This will be logged too");
 ```
 
+Use the winlog backend with env_logger filter enabled:
+```
+// # export RUST_LOG="info"
+winlog::init("Example Log").unwrap();
+info!("Hello, Event Log");
+trace!("This will be filtered out");
+```
+
+### Deregister log source
 
 Deregister the log source: 
 ```
@@ -71,6 +95,14 @@ winlog::try_deregister("Example Log").unwrap();
 This is usually done during program uninstall. If your MSI 
 installer (or similar) deregisters your event sources you should not call this.
 
+## What's New
+
+### 0.2.5
+
+* Gitlab CI builds on Windows 10 and Debian/MinGW.
+* Optional support for env_logger event (enable feature `env_logger`).
+* Always run `windrc/windrc` on MinGW.
+* Include linker configuration in `.cargo/config`. 
 
 ## Building
 
