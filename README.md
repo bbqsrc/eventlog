@@ -32,7 +32,6 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 * Rust stable (tested on 1.29)
 * Windows or MinGW
-* [MinGW, optional] [windmc](http://man7.org/linux/man-pages/man1/windmc.1.html) and [windres](http://man7.org/linux/man-pages/man1/windres.1.html) (only required when `eventmsgs.mc` is changed)
 * [Windows, optional] [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
 * [Windows, optional] PowerShell (used for the end-to-end test)
 
@@ -93,17 +92,12 @@ Install Rust:
 
 ```sh
 rustup target install x86_64-pc-windows-gnu
-rustup target install i686-pc-windows-gnu
 ```
 
 Currently the install from rustup doesn't use the correct linker so you have to add the following to `.cargo/config`:
 
     [target.x86_64-pc-windows-gnu]
     linker = "/usr/bin/x86_64-w64-mingw32-gcc"
-
-    [target.i686-pc-windows-gnu]
-    linker = "/usr/bin/i686-w64-mingw32-gcc"
-    rustflags = "-C panic=abort"
 
 Build:
 ```sh
