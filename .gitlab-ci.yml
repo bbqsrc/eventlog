@@ -1,3 +1,6 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
 test:win10:stable:
   tags:
     - win10
@@ -19,13 +22,16 @@ test:win10:1.29.0:
     - rustc --version; cargo --version
     - cargo +1.29.0 test --all --verbose
     
-build:mingw:
+build:mingw:x86_x64:
+  variables:
+    ARCH: "x86_64"
   tags:
     - docker
   image: rust:latest
   script:
     - apt-get update
-    - apt install mingw-w64 -y
-    - rustup target install x86_64-pc-windows-gnu
+    - apt-get install mingw-w64 -y
+    - rustup target install $ARCH-pc-windows-gnu
+    - cp /usr/$ARCH-w64-mingw32/lib/crt2.o $RUSTUP_HOME/toolchains/*-x86_64-unknown-linux-gnu/lib/rustlib/$ARCH-pc-windows-gnu/lib/
     - rustc --version --verbose; cargo --version --verbose
-    - cargo build --target x86_64-pc-windows-gnu --all --verbose
+    - cargo test --no-run --target $ARCH-pc-windows-gnu --all --verbose
