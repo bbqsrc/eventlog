@@ -86,21 +86,25 @@ fn file_hash(f: &str) -> String {
 }
 
 fn file_contains(f: &str, needle: &str) -> bool {
-    let file = File::open(f).unwrap();
-    for line in BufReader::new(file).lines() {
-        if line.unwrap().contains(needle) {
-            println!("file={} contains {}", f, needle);
-            return true;
+    match File::open(f) {
+        Err(_) => false,
+        Ok(file) => {
+            for line in BufReader::new(file).lines() {
+                if line.unwrap().contains(needle) {
+                    println!("file={} contains {}", f, needle);
+                    return true;
+                }
+            }
+            println!("file={} does not contain {}", f, needle);
+            false
         }
     }
-    println!("file={} does not contain {}", f, needle);
-    false
 }
 
 fn main() {
     let origin_hash = file_hash(INPUT_FILE);
 
-    if !file_contains(GENERATED_FILE, &origin_hash) {
+    if cfg!(not(windows)) || !file_contains(GENERATED_FILE, &origin_hash) {
         println!("Generating {} from {} with hash {}", GENERATED_FILE, INPUT_FILE, origin_hash);
 
         run_tool(MC_BIN, MC_ARGS);
