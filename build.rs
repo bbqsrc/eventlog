@@ -49,12 +49,17 @@ fn prefix_command(cmd: &str) -> Cow<str> {
 }
 
 fn run_tool(cmd: &str, args: &[&str]) -> () {
-    let mut command = Command::new(prefix_command(cmd).as_ref());
-    command.args(args);
-
-    let out = command.output().unwrap();
-    println!("{:?}", str::from_utf8(&out.stderr).unwrap());
-    println!("{:?}", str::from_utf8(&out.stdout).unwrap());
+    let program = prefix_command(cmd);
+    let mut command = Command::new(program.as_ref());
+    match command.args(args).output() {
+        Ok(out) => {
+            println!("{:?}", str::from_utf8(&out.stderr).unwrap());
+            println!("{:?}", str::from_utf8(&out.stdout).unwrap());
+        },
+        Err(err) => {
+            println!("ERROR: Failed to run command: {}, error: {}", program, err);
+        },
+    }
 }
 
 fn gen_rust(origin_hash: &str) -> () {
@@ -102,6 +107,10 @@ fn file_contains(f: &str, needle: &str) -> bool {
 }
 
 fn main() {
+    for (key, value) in env::vars() {
+        println!("Env[{}]={}", key, value);
+    }
+
     let origin_hash = file_hash(INPUT_FILE);
 
     if cfg!(not(windows)) || !file_contains(GENERATED_FILE, &origin_hash) {
