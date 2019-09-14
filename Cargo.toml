@@ -1,6 +1,6 @@
 [package]
 name = "winlog"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Jeroen C. van Gelderen <jeroen@vangelderen.org>"]
 build = "build.rs"
 categories = [ "development-tools::debugging", "os::windows-apis" ]

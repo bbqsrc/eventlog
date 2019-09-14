@@ -97,6 +97,11 @@ installer (or similar) deregisters your event sources you should not call this.
 
 ## What's New
 
+### 0.2.6
+
+* Disable unneeded regex features to speed up the build.
+* Improve error reporting/handling in `build.rs`.
+
 ### 0.2.5
 
 * Gitlab CI builds on Windows 10 and Debian/MinGW.
