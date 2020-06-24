@@ -11,6 +11,7 @@ repository = "https://gitlab.com/arbitrix/winlog"
 keywords = [ "eventlog", "logging", "windows" ]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+edition = "2018"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"

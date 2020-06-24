@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate log;
-extern crate rand;
-extern crate winlog;
 
 use log::Level;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};

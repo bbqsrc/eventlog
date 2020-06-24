@@ -1,13 +1,10 @@
-extern crate regex;
-extern crate sha2;
-
 use regex::Regex;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow,
     env,
     fs::File,
-    io::{prelude::*, copy, BufRead, BufReader, LineWriter},
+    io::{copy, prelude::*, BufRead, BufReader, LineWriter},
     process::Command,
     str,
 };
@@ -55,10 +52,10 @@ fn run_tool(cmd: &str, args: &[&str]) -> () {
         Ok(out) => {
             println!("{:?}", str::from_utf8(&out.stderr).unwrap());
             println!("{:?}", str::from_utf8(&out.stdout).unwrap());
-        },
+        }
         Err(err) => {
             println!("ERROR: Failed to run command: {}, error: {}", program, err);
-        },
+        }
     }
 }
 
@@ -68,7 +65,15 @@ fn gen_rust(origin_hash: &str) -> () {
     let file_out = File::create(GENERATED_FILE).unwrap();
     let mut writer = LineWriter::new(file_out);
 
-    writer.write_all(format!("// Auto-generated from origin with SHA256 {}.\n", origin_hash).as_bytes()).unwrap();
+    writer
+        .write_all(
+            format!(
+                "// Auto-generated from origin with SHA256 {}.\n",
+                origin_hash
+            )
+            .as_bytes(),
+        )
+        .unwrap();
 
     let file_in = File::open("res/eventmsgs.h").unwrap();
     for line_res in BufReader::new(file_in).lines() {
@@ -114,7 +119,10 @@ fn main() {
     let origin_hash = file_hash(INPUT_FILE);
 
     if cfg!(not(windows)) || !file_contains(GENERATED_FILE, &origin_hash) {
-        println!("Generating {} from {} with hash {}", GENERATED_FILE, INPUT_FILE, origin_hash);
+        println!(
+            "Generating {} from {} with hash {}",
+            GENERATED_FILE, INPUT_FILE, origin_hash
+        );
 
         run_tool(MC_BIN, MC_ARGS);
         run_tool(RC_BIN, RC_ARGS);
