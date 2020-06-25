@@ -16,7 +16,7 @@ default-target = "x86_64-pc-windows-msvc"
 
 [dependencies]
 log = { version = "0.4", features = ["std"] }
-registry = { git = "https://github.com/bbqsrc/registry-rs" }
+registry = "1.0.0-alpha.1"
 thiserror = "1.0.20"
 winapi = { version = "0.3", features = ["winbase"] }
 
