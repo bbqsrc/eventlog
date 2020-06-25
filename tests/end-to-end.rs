@@ -4,18 +4,18 @@ extern crate log;
 use log::Level;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::{process::Command, str};
-use winlog::{deregister, init, register};
+use eventlog::{deregister, init, register};
 
 #[test]
 fn end_to_end() {
     let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(16).collect();
-    let log_source = format!("winlog-test-{}", rand_string);
+    let log_source = format!("eventlog-test-{}", rand_string);
 
     // Add log source to Windows registry
     register(&log_source);
 
     // Do some logging and verification
-    init(&log_source).unwrap();
+    init(&log_source, Level::Trace).unwrap();
     log_and_verify_one(Level::Error, &log_source, "Error", "1", "Error!!");
     log_and_verify_one(Level::Warn, &log_source, "Warning", "2", "Warning!!");
     log_and_verify_one(Level::Info, &log_source, "Information", "3", "Info!!");

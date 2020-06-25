@@ -1,185 +1,136 @@
+mod eventmsgs;
+
+use std::convert::TryInto;
+use std::ffi::OsStr;
+use std::io;
+use std::iter::once;
+use std::{os::windows::ffi::OsStrExt, ptr::null_mut};
+
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
-use std::{error, ffi::OsStr, fmt, io, iter::once, os::windows::ffi::OsStrExt};
+use registry::{Data, Hive, Security};
 use winapi::{
-    shared::ntdef::{HANDLE, NULL},
+    shared::ntdef::HANDLE,
     um::{
         winbase::{DeregisterEventSource, RegisterEventSourceW, ReportEventW},
         winnt::{EVENTLOG_ERROR_TYPE, EVENTLOG_INFORMATION_TYPE, EVENTLOG_WARNING_TYPE},
     },
 };
-use winreg::{enums::*, RegKey};
 
-mod eventmsgs;
 use crate::eventmsgs::{MSG_DEBUG, MSG_ERROR, MSG_INFO, MSG_TRACE, MSG_WARNING};
 
-const REG_BASEKEY: &str = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application";
+const REG_BASEKEY: &str = r"SYSTEM\CurrentControlSet\Services\EventLog\Application";
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    Io(io::Error),
+    #[error("Could not determine executable path")]
     ExePathNotFound,
-    RegisterSourceFailed,
+
+    #[error("Call to RegisterEventSource failed")]
+    RegisterSourceFailed(#[from] io::Error),
+
+    #[error("Failed to modify registry key")]
+    RegKey(#[from] registry::key::Error),
+
+    #[error("Failed to modify registry value")]
+    RegValue(#[from] registry::value::Error),
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Io(ref err) => write!(f, "IO error: {}", err),
-            Error::ExePathNotFound => write!(f, "Could not determine executable path"),
-            Error::RegisterSourceFailed => write!(f, "Call to RegisterEventSource failed"),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::Io(ref err) => Some(err),
-            Error::ExePathNotFound => None,
-            Error::RegisterSourceFailed => None,
-        }
-    }
-}
-
-#[cfg(not(feature = "env_logger"))]
-pub struct Filter {}
-#[cfg(not(feature = "env_logger"))]
-impl Filter {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        true
-    }
-    fn matches(&self, _record: &Record) -> bool {
-        true
-    }
-}
-#[cfg(not(feature = "env_logger"))]
-fn make_filter() -> Filter {
-    Filter {}
-}
-
-#[cfg(feature = "env_logger")]
-use env_logger::filter::Filter;
-#[cfg(feature = "env_logger")]
-fn make_filter() -> Filter {
-    use env_logger::filter::Builder;
-    let mut builder = Builder::from_env("RUST_LOG");
-    builder.build()
-}
-
-pub struct WinLogger {
+pub struct EventLog {
     handle: HANDLE,
-    filter: Filter,
+    level: log::Level,
 }
 
-unsafe impl Send for WinLogger {}
-unsafe impl Sync for WinLogger {}
+unsafe impl Send for EventLog {}
+unsafe impl Sync for EventLog {}
 
-fn discard_result<R, E>(_result: &Result<R, E>) {
-    ()
-}
-
+#[inline(always)]
 fn win_string(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(once(0)).collect()
 }
 
-pub fn deregister(name: &str) {
-    discard_result(&try_deregister(name))
+#[derive(Debug, thiserror::Error)]
+pub enum InitError {
+    #[error("Failed to create logger")]
+    Create(#[from] Error),
+
+    #[error("Failed to set logger")]
+    Set(#[from] SetLoggerError),
 }
 
-pub fn init(name: &str) -> Result<(), SetLoggerError> {
-    log::set_boxed_logger(Box::new(WinLogger::new(name)))
-        .map(|()| log::set_max_level(LevelFilter::Trace))
+pub fn init(name: &str, level: log::Level) -> Result<(), InitError> {
+    let logger = Box::new(EventLog::new(name, level)?);
+    log::set_boxed_logger(logger)
+        .map(|()| log::set_max_level(LevelFilter::Trace))?;
+    Ok(())
 }
 
-pub fn register(name: &str) {
-    discard_result(&try_register(name))
+pub fn deregister(name: &str) -> Result<(), registry::key::Error> {
+    let key = Hive::LocalMachine.open(REG_BASEKEY, Security::Read)?;
+    key.delete(name, true)
 }
 
-pub fn try_deregister(name: &str) -> Result<(), Error> {
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let cur_ver = hklm.open_subkey(REG_BASEKEY)?;
-    cur_ver.delete_subkey(name).map_err(From::from)
-}
-
-pub fn try_register(name: &str) -> Result<(), Error> {
-    let current_exe = ::std::env::current_exe()?;
+pub fn register(name: &str) -> Result<(), Error> {
+    let current_exe = std::env::current_exe()?;
     let exe_path = current_exe.to_str().ok_or(Error::ExePathNotFound)?;
 
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let cur_ver = hklm.open_subkey(REG_BASEKEY)?;
-    let app_key = cur_ver.create_subkey(name)?;
-    app_key
-        .set_value("EventMessageFile", &exe_path)
-        .map_err(From::from)
+    let key = Hive::LocalMachine.open(REG_BASEKEY, Security::Write)?;
+    let app_key = key.create(name, Security::Write)?;
+    Ok(app_key.set_value(
+        "EventMessageFile",
+        &Data::String(exe_path.try_into().map_err(|_| Error::ExePathNotFound)?),
+    )?)
 }
 
-impl WinLogger {
-    pub fn new(name: &str) -> WinLogger {
-        Self::try_new(name).unwrap_or(WinLogger {
-            handle: NULL,
-            filter: make_filter(),
-        })
-    }
-
-    pub fn try_new(name: &str) -> Result<WinLogger, Error> {
+impl EventLog {
+    pub fn new(name: &str, level: log::Level) -> Result<EventLog, Error> {
         let wide_name = win_string(name);
-        let handle = unsafe { RegisterEventSourceW(std::ptr::null_mut(), wide_name.as_ptr()) };
+        let handle = unsafe { RegisterEventSourceW(null_mut(), wide_name.as_ptr()) };
 
-        if handle == NULL {
-            Err(Error::RegisterSourceFailed)
+        if handle.is_null() {
+            Err(Error::RegisterSourceFailed(std::io::Error::last_os_error()))
         } else {
-            Ok(WinLogger {
-                handle,
-                filter: make_filter(),
-            })
+            Ok(EventLog { handle, level })
         }
     }
 }
 
-impl Drop for WinLogger {
-    fn drop(&mut self) -> () {
+impl Drop for EventLog {
+    fn drop(&mut self) {
         unsafe { DeregisterEventSource(self.handle) };
     }
 }
 
-impl log::Log for WinLogger {
+impl log::Log for EventLog {
+    #[inline(always)]
     fn enabled(&self, metadata: &Metadata) -> bool {
-        self.filter.enabled(metadata)
+        metadata.level() <= self.level
     }
 
     fn log(&self, record: &Record) {
-        if self.filter.matches(record) {
-            let type_and_msg = match record.level() {
-                Level::Error => (EVENTLOG_ERROR_TYPE, MSG_ERROR),
-                Level::Warn => (EVENTLOG_WARNING_TYPE, MSG_WARNING),
-                Level::Info => (EVENTLOG_INFORMATION_TYPE, MSG_INFO),
-                Level::Debug => (EVENTLOG_INFORMATION_TYPE, MSG_DEBUG),
-                Level::Trace => (EVENTLOG_INFORMATION_TYPE, MSG_TRACE),
-            };
+        let (ty, id) = match record.level() {
+            Level::Error => (EVENTLOG_ERROR_TYPE, MSG_ERROR),
+            Level::Warn => (EVENTLOG_WARNING_TYPE, MSG_WARNING),
+            Level::Info => (EVENTLOG_INFORMATION_TYPE, MSG_INFO),
+            Level::Debug => (EVENTLOG_INFORMATION_TYPE, MSG_DEBUG),
+            Level::Trace => (EVENTLOG_INFORMATION_TYPE, MSG_TRACE),
+        };
 
-            let msg = win_string(&format!("{:?}", record.args()));
-            let mut vec = vec![msg.as_ptr()];
+        let msg = win_string(&format!("{}", record.args()));
+        let mut vec = vec![msg.as_ptr()];
 
-            unsafe {
-                ReportEventW(
-                    self.handle,
-                    type_and_msg.0, // type
-                    0,              // category
-                    type_and_msg.1, // event id == resource msg id
-                    std::ptr::null_mut(),
-                    vec.len() as u16,
-                    0,
-                    vec.as_mut_ptr(),
-                    std::ptr::null_mut(),
-                )
-            };
-        }
+        unsafe {
+            ReportEventW(
+                self.handle,
+                ty,
+                0,
+                id,
+                null_mut(),
+                vec.len() as u16,
+                0,
+                vec.as_mut_ptr(),
+                null_mut(),
+            )
+        };
     }
 
     fn flush(&self) {}

@@ -1,22 +1,20 @@
-# winlog
+# eventlog
 
-[![Build status](https://img.shields.io/gitlab/pipeline/arbitrix/winlog.svg)](https://gitlab.com/arbitrix/winlog/pipelines)
-[![Latest version](https://img.shields.io/crates/v/winlog.svg)](https://crates.io/crates/winlog)
-[![Documentation](https://docs.rs/winlog/badge.svg)](https://docs.rs/winlog)
-[![License](https://img.shields.io/crates/l/winlog.svg)](https://gitlab.com/arbitrix/winlog/blob/master/LICENSE)
+[![Latest version](https://img.shields.io/crates/v/eventlog.svg)](https://crates.io/crates/eventlog)
+[![Documentation](https://docs.rs/eventlog/badge.svg)](https://docs.rs/eventlog)
 
-A simple [Rust log](https://docs.rs/log/latest/log/) backend to send messages to the [Windows event log](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
+A [log](https://docs.rs/log)-compatible wrapper around the [Windows Event Log API](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
+
+Thanks to Jeroen C. van Gelderen for creating the [winlog](https://gitlab.com/arbitrix/winlog) project from which this is forked.
 
 ## Features
 
 * Writes Rust log messages to the Windows event log using the
   [RegisterEventSourceW](https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-registereventsourcew)
   and [ReportEventW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-reporteventw) APIs.
-* Supports `env_logger` filtering, initialized from RUST_LOG environment variable. (optional)
 * Provides utility functions to register/unregister your
   [event source](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-sources) in the Windows registry.
-* Embeds a small (120-byte) message resource library containing the
-  necessary log message templates in your executable.
+* Embeds a small (120-byte) message resource library containing the necessary log message templates in your executable.
 * Does not panic.
 
 The five Rust log levels are mapped to Windows [event types](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-types) as follows:
@@ -32,8 +30,7 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 ## Requirements
 
-* Rust 1.29+
-* Windows or MinGW
+* Rust 1.29+ on Windows with MSVC toolchain
 * [Windows, optional] [mc.exe](https://docs.microsoft.com/en-us/windows/desktop/wes/message-compiler--mc-exe-) and [rc.exe](https://docs.microsoft.com/en-us/windows/desktop/menurc/resource-compiler) (only required when `eventmsgs.mc` is changed)
 * [Windows, optional] PowerShell (used for the end-to-end test)
 
@@ -41,105 +38,40 @@ The five Rust log levels are mapped to Windows [event types](https://docs.micros
 
 ### Cargo.toml
 
-Plain winlog:
-```
+```toml
 [dependencies]
-winlog = "*"
-```
-Or to enable env_logger filtering support:
-```
-[dependencies]
-winlog = { version = "0.2.5", features = ["env_logger"] }
+eventlog = "0.1.0"
 ```
 
 ### Register log source with Windows
 
 Register the log source in the Windows registry:
+```rust
+eventlog::register("Example Log").unwrap();
 ```
-winlog::register("Example Log"); // silently ignores errors
-// or
-winlog::try_register("Example Log").unwrap();
-```
-This usually requires `Administrator` permission so this is usually done during
-installation time.
+
+This usually requires **Administrator** permission so this is usually done during installation time.
 
 If your MSI installer (or similar) registers your event sources you should not call this.
 
-
 ### Log events
 
-Without env_logger filtering:
-```
-winlog::init("Example Log").unwrap();
+```rust
+eventlog::init("Example Log", log::Level::Trace).unwrap();
 
 info!("Hello, Event Log");
 trace!("This will be logged too");
 ```
 
-Use the winlog backend with env_logger filter enabled:
-```
-// # export RUST_LOG="info"
-winlog::init("Example Log").unwrap();
-info!("Hello, Event Log");
-trace!("This will be filtered out");
-```
-
 ### Deregister log source
 
 Deregister the log source: 
-```
-winlog::deregister("Example Log"); // silently ignores errors
-// or
-winlog::try_deregister("Example Log").unwrap();
-```
-This is usually done during program uninstall. If your MSI 
-installer (or similar) deregisters your event sources you should not call this.
 
-## What's New
-
-### 0.2.6
-
-* Disable unneeded regex features to speed up the build.
-* Improve error reporting/handling in `build.rs`.
-
-### 0.2.5
-
-* Gitlab CI builds on Windows 10 and Debian/MinGW.
-* Optional support for env_logger event (enable feature `env_logger`).
-* Always run `windrc/windrc` on MinGW.
-* Include linker configuration in `.cargo/config`. 
-
-## Building
-
-### Windows
-
-```sh
-cargo build --release
+```rust
+eventlog::deregister("Example Log").unwrap();
 ```
 
-### MinGW
-
-Install MinGW (Ubuntu):
-
-```sh
-sudo apt install mingw-w64
-```
-
-Install Rust:
-
-```sh
-rustup target install x86_64-pc-windows-gnu
-```
-
-Currently the install from rustup doesn't use the correct linker so you have to add the following to `.cargo/config`:
-
-    [target.x86_64-pc-windows-gnu]
-    linker = "/usr/bin/x86_64-w64-mingw32-gcc"
-
-Build:
-```sh
-cargo build --release
-```
+This is usually done during program uninstallation. If your MSI installer (or similar) deregisters your event sources you should not call this.
 
 ### Internals
 
@@ -160,16 +92,18 @@ The end-to-end test requires 'Full Control' permissions on the
 `HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application`
 registry key.
 
-```cargo test```
+```rust
+cargo test
+```
 
-Process:
-1. Create a unique temporary event source name (`winlog-test-###########`).
+### Process:
+1. Create a unique temporary event source name (`eventlog-test-###########`).
 2. Register our compiled test executable as ```EventMessageFile``` for 
    the event source in the Windows registry. You can see a new key at 
-   `HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application\winlog-test-###########`.
+   `HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application\eventlog-test-###########`.
 2. Write some log messages to the event source.
 3. Use PowerShell to retrieve the logged messages.
-4. Deregister our event source. This removes the `winlog-test-###########` 
+4. Deregister our event source. This removes the `eventlog-test-###########` 
    registry key.
 5. Assert that the retrieved log messages are correct. 
 
@@ -182,7 +116,6 @@ Licensed under either of
 * MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
 
 at your option.
-
 
 ## Contribution
 

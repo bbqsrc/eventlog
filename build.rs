@@ -90,7 +90,7 @@ fn file_hash(f: &str) -> String {
     let mut file = File::open(f).unwrap();
     let mut hasher = Sha256::new();
     let _count = copy(&mut file, &mut hasher).unwrap();
-    let formatted = format!("{:x}", hasher.result());
+    let formatted = format!("{:x}", hasher.finalize());
     println!("file={}, hash={}", f, formatted);
     formatted
 }
