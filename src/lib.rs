@@ -107,6 +107,10 @@ impl log::Log for EventLog {
     }
 
     fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
         let (ty, id) = match record.level() {
             Level::Error => (EVENTLOG_ERROR_TYPE, MSG_ERROR),
             Level::Warn => (EVENTLOG_WARNING_TYPE, MSG_WARNING),
