@@ -15,16 +15,6 @@ use std::{
 const REGEX: &str = r"^#define (\S+)\s+\(?(\([[:alpha:]]+\))?\s*(0x[[:xdigit:]]+)";
 
 const INPUT_FILE: &str = "res/eventmsgs.mc";
-const GENERATED_FILE: &str = "res/eventmsgs.rs";
-
-const MC_ARGS: &[&str] = &["-U", "-h", "res", "-r", "res", INPUT_FILE];
-
-#[cfg(not(windows))]
-const MC_BIN: &str = "windmc";
-#[cfg(not(windows))]
-const RC_BIN: &str = "windres";
-#[cfg(not(windows))]
-const RC_ARGS: &[&str] = &["-v", "-i", "res/eventmsgs.rc", "-o", "res/eventmsgs.lib"];
 
 #[cfg(not(windows))]
 fn prefix_command(cmd: &str) -> Cow<str> {
@@ -32,13 +22,6 @@ fn prefix_command(cmd: &str) -> Cow<str> {
     let arch: &str = target.split("-").collect::<Vec<&str>>()[0];
     format!("{}-w64-mingw32-{}", arch, cmd).into()
 }
-
-#[cfg(windows)]
-const MC_BIN: &str = "mc.exe";
-#[cfg(windows)]
-const RC_BIN: &str = "rc.exe";
-#[cfg(windows)]
-const RC_ARGS: &[&str] = &["/v", "/fo", "res/eventmsgs.lib", "res/eventmsgs.rc"];
 
 #[cfg(windows)]
 fn prefix_command(cmd: &str) -> Cow<str> {
@@ -59,10 +42,10 @@ fn run_tool(cmd: &str, args: &[&str]) -> () {
     }
 }
 
-fn gen_rust(origin_hash: &str) -> () {
+fn gen_rust(generated_file: &str, origin_hash: &str) -> () {
     let re = Regex::new(REGEX).unwrap();
 
-    let file_out = File::create(GENERATED_FILE).unwrap();
+    let file_out = File::create(generated_file).unwrap();
     let mut writer = LineWriter::new(file_out);
 
     writer
@@ -118,18 +101,45 @@ fn main() {
 
     let origin_hash = file_hash(INPUT_FILE);
 
-    if cfg!(not(windows)) || !file_contains(GENERATED_FILE, &origin_hash) {
+    if cfg!(windows) {
+        const GENERATED_FILE: &str = "res/eventmsgs.rs";
+
+        if !file_contains(GENERATED_FILE, &origin_hash) {
+            println!(
+                "Generating {} from {} with hash {}",
+                GENERATED_FILE, INPUT_FILE, origin_hash
+            );
+
+            run_tool("mc.exe", &["-U", "-h", "res", "-r", "res", INPUT_FILE]);
+            run_tool(
+                "rc.exe",
+                &["/v", "/fo", "res/eventmsgs.lib", "res/eventmsgs.rc"],
+            );
+            gen_rust(GENERATED_FILE, &origin_hash);
+        }
+
+        let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        println!("cargo:rustc-link-search=native={}/res", dir);
+        println!("cargo:rustc-link-lib=dylib=eventmsgs");
+    } else {
+        let out_dir = env::var("OUT_DIR").unwrap();
+        let rc = format!("{}/eventmsgs.rc", out_dir);
+        let lib = format!("{}/eventmsgs.lib", out_dir);
+        let generated_file = format!("{}/eventmsgs.rs", out_dir);
+
         println!(
             "Generating {} from {} with hash {}",
-            GENERATED_FILE, INPUT_FILE, origin_hash
+            generated_file, INPUT_FILE, origin_hash
         );
 
-        run_tool(MC_BIN, MC_ARGS);
-        run_tool(RC_BIN, RC_ARGS);
-        gen_rust(&origin_hash);
-    }
+        run_tool(
+            "windmc",
+            &["-U", "-h", &out_dir, "-r", &out_dir, INPUT_FILE],
+        );
+        run_tool("windres", &["-v", "-i", &rc, "-o", &lib]);
+        gen_rust(&generated_file, &origin_hash);
 
-    let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    println!("cargo:rustc-link-search=native={}/res", dir);
-    println!("cargo:rustc-link-lib=dylib=eventmsgs");
+        println!("cargo:rustc-link-search=native={}", out_dir);
+        println!("cargo:rustc-link-lib=dylib=eventmsgs");
+    }
 }
