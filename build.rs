@@ -42,7 +42,7 @@ fn run_tool(cmd: &str, args: &[&str]) -> () {
     }
 }
 
-fn gen_rust(generated_file: &str, origin_hash: &str) -> () {
+fn gen_rust(generated_file: &str, header: &str, origin_hash: &str) -> () {
     let re = Regex::new(REGEX).unwrap();
 
     let file_out = File::create(generated_file).unwrap();
@@ -58,7 +58,7 @@ fn gen_rust(generated_file: &str, origin_hash: &str) -> () {
         )
         .unwrap();
 
-    let file_in = File::open("res/eventmsgs.h").unwrap();
+    let file_in = File::open(header).unwrap();
     for line_res in BufReader::new(file_in).lines() {
         let line = line_res.unwrap();
         if let Some(x) = re.captures(&line) {
@@ -115,7 +115,7 @@ fn main() {
                 "rc.exe",
                 &["/v", "/fo", "res/eventmsgs.lib", "res/eventmsgs.rc"],
             );
-            gen_rust(GENERATED_FILE, &origin_hash);
+            gen_rust(GENERATED_FILE, "res/eventmsgs.h", &origin_hash);
         }
 
         let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -125,6 +125,7 @@ fn main() {
         let out_dir = env::var("OUT_DIR").unwrap();
         let rc = format!("{}/eventmsgs.rc", out_dir);
         let lib = format!("{}/eventmsgs.lib", out_dir);
+        let header = format!("{}/eventmsgs.h", out_dir);
         let generated_file = format!("{}/eventmsgs.rs", out_dir);
 
         println!(
@@ -137,7 +138,7 @@ fn main() {
             &["-U", "-h", &out_dir, "-r", &out_dir, INPUT_FILE],
         );
         run_tool("windres", &["-v", "-i", &rc, "-o", &lib]);
-        gen_rust(&generated_file, &origin_hash);
+        gen_rust(&generated_file, &header, &origin_hash);
 
         println!("cargo:rustc-link-search=native={}", out_dir);
         println!("cargo:rustc-link-lib=dylib=eventmsgs");
