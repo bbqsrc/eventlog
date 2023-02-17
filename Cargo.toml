@@ -1,6 +1,6 @@
 [package]
 name = "eventlog"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
 build = "build.rs"
 categories = ["development-tools::debugging", "os::windows-apis"]
@@ -13,6 +13,7 @@ edition = "2018"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
+targets = ["aarch64-pc-windows-msvc", "i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
 
 [dependencies]
 log = { version = "0.4.17", features = ["std"] }
