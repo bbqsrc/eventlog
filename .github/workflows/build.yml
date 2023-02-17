@@ -1,0 +1,61 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build-mingw-x86-x64:
+    runs-on: ubuntu-latest
+    container: rust:latest
+    env:
+      ARCH: x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install build dependencies
+        run: |
+          set -x
+          apt-get update
+          apt-get install mingw-w64 -y
+          rustup target install $ARCH-pc-windows-gnu
+
+      - name: Build
+        run: cargo build --target $ARCH-pc-windows-gnu --all --verbose
+
+  build-msvc-cached-lib:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Build
+        run: cargo build --all --verbose
+
+  build-msvc-rebuild-lib:
+    runs-on: windows-2019
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Set up Visual Studio build environment variables and paths 
+        uses: seanmiddleditch/gha-setup-vsdevenv@v4
+
+      - name: Invalidate res/eventmsgs.rs
+        run: sed -i '1d' res/eventmsgs.rs
+
+      - name: Build
+        run: cargo build --all --verbose
