@@ -139,3 +139,11 @@ impl log::Log for EventLog {
 
     fn flush(&self) {}
 }
+
+impl std::fmt::Debug for EventLog {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Windows Event Logger (")?;
+        self.level.fmt(f)?;
+        f.write_str(")")
+    }
+}
