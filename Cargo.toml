@@ -19,7 +19,14 @@ targets = ["x86_64-pc-windows-gnu"]
 log = { version = "0.4.17", features = ["std"] }
 registry = "1.2.2"
 thiserror = "1.0.38"
-winapi = { version = "0.3.9", features = ["winbase"] }
+
+[dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_Foundation",
+    "Win32_System_EventLog",
+    "Win32_Security",
+]
 
 [build-dependencies]
 regex = { version = "1.7.1", features = ["std", "unicode-perl"], default-features = false }

@@ -2,19 +2,14 @@ mod eventmsgs;
 
 use std::convert::TryInto;
 use std::ffi::OsStr;
-use std::io;
 use std::iter::once;
-use std::{os::windows::ffi::OsStrExt, ptr::null_mut};
+use std::os::windows::ffi::OsStrExt;
 
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use registry::{Data, Hive, Security};
-use winapi::{
-    shared::ntdef::HANDLE,
-    um::{
-        winbase::{DeregisterEventSource, RegisterEventSourceW, ReportEventW},
-        winnt::{EVENTLOG_ERROR_TYPE, EVENTLOG_INFORMATION_TYPE, EVENTLOG_WARNING_TYPE},
-    },
-};
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::HANDLE;
+use windows::Win32::System::EventLog::{DeregisterEventSource, RegisterEventSourceW, ReportEventW, EVENTLOG_ERROR_TYPE, EVENTLOG_INFORMATION_TYPE, EVENTLOG_WARNING_TYPE};
 
 use crate::eventmsgs::{MSG_DEBUG, MSG_ERROR, MSG_INFO, MSG_TRACE, MSG_WARNING};
 
@@ -26,7 +21,7 @@ pub enum Error {
     ExePathNotFound,
 
     #[error("Call to RegisterEventSource failed")]
-    RegisterSourceFailed(#[from] io::Error),
+    RegisterSourceFailed(#[from] windows::core::Error),
 
     #[error("Failed to modify registry key")]
     RegKey(#[from] registry::key::Error),
@@ -70,7 +65,7 @@ pub fn deregister(name: &str) -> Result<(), registry::key::Error> {
 }
 
 pub fn register(name: &str) -> Result<(), Error> {
-    let current_exe = std::env::current_exe()?;
+    let current_exe = std::env::current_exe().map_err(|_| Error::ExePathNotFound)?;
     let exe_path = current_exe.to_str().ok_or(Error::ExePathNotFound)?;
 
     let key = Hive::LocalMachine.open(REG_BASEKEY, Security::Write)?;
@@ -84,19 +79,17 @@ pub fn register(name: &str) -> Result<(), Error> {
 impl EventLog {
     pub fn new(name: &str, level: log::Level) -> Result<EventLog, Error> {
         let wide_name = win_string(name);
-        let handle = unsafe { RegisterEventSourceW(null_mut(), wide_name.as_ptr()) };
-
-        if handle.is_null() {
-            Err(Error::RegisterSourceFailed(std::io::Error::last_os_error()))
-        } else {
-            Ok(EventLog { handle, level })
-        }
+        let handle = unsafe {
+            RegisterEventSourceW(None, PCWSTR(wide_name.as_ptr()))?
+        };
+        
+        Ok(EventLog { handle, level })
     }
 }
 
 impl Drop for EventLog {
     fn drop(&mut self) {
-        unsafe { DeregisterEventSource(self.handle) };
+        let _ = unsafe { DeregisterEventSource(self.handle) };
     }
 }
 
@@ -120,20 +113,19 @@ impl log::Log for EventLog {
         };
 
         let msg = win_string(&format!("{}", record.args()));
-        let mut vec = vec![msg.as_ptr()];
+        let vec = vec![PCWSTR(msg.as_ptr())];
 
         unsafe {
-            ReportEventW(
+            let _ = ReportEventW(
                 self.handle,
                 ty,
                 0,
                 id,
-                null_mut(),
-                vec.len() as u16,
-                0,
-                vec.as_mut_ptr(),
-                null_mut(),
-            )
+                None,
+                vec.len() as u32,
+                Some(&vec),
+                None,
+            );
         };
     }
 
