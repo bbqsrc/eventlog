@@ -122,7 +122,7 @@ impl log::Log for EventLog {
                 0,
                 id,
                 None,
-                vec.len() as u32,
+                0,
                 Some(&vec),
                 None,
             );
